@@ -1,6 +1,6 @@
 # CV to Webpage
 
-Upload your CV, get a beautiful personal webpage. 6 visual styles, live preview, download as a standalone HTML file — all powered by Claude AI.
+Upload your CV, pick a vibe, and get a stunning personal webpage in seconds. 6 visual styles, 6 accent colors, live preview, one-click HTML download — powered by Claude AI.
 
 **Try it now:** https://cv-to-webpage.vercel.app/
 
