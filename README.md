@@ -1,6 +1,6 @@
-# CV Visualizer
+# CV to Webpage
 
-Turn any CV/resume into a stunning single-page HTML profile — powered by Claude.
+Turn any CV/resume into a stunning single-page HTML webpage — powered by Claude AI.
 
 ## Quick Start
 
@@ -21,45 +21,25 @@ Get one at: https://console.anthropic.com
 npm run dev
 ```
 
-Open http://localhost:3000 — you're live.
+Open http://localhost:3000
 
 ---
 
-## Project Structure
-
-```
-cv-visualizer/
-├── app/
-│   ├── api/
-│   │   └── generate-cv/
-│   │       └── route.ts        ← Anthropic API proxy (key stays server-side)
-│   ├── components/
-│   │   └── CvVisualizer.tsx    ← Main UI component
-│   ├── layout.tsx
-│   └── page.tsx
-├── .env.local.example          ← Copy to .env.local and add your key
-├── .env.local                  ← Your real key (git-ignored)
-└── README.md
-```
-
 ## How It Works
 
-1. User uploads a PDF or text CV
-2. Picks a visual style (vibe, emphasis, accent color)
-3. Frontend sends the CV + prefs to `/api/generate-cv`
-4. Next.js API route calls Anthropic with your server-side key
-5. Claude generates a complete single-file HTML page
-6. Rendered in an iframe — user can download it
+1. Upload a PDF or text CV
+2. Pick a visual style (vibe, emphasis, accent color)
+3. Click "Generate My Personal Webpage"
+4. Claude AI generates a complete single-file HTML page
+5. Preview it in the browser and download as a standalone `.html` file
+
+## Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript
+- **AI:** Claude Sonnet via `@anthropic-ai/sdk`
+- **Styling:** Inline React styles (dark theme)
 
 ## Cost
 
-~$0.07 per CV generated using Claude Sonnet.
-
-## Next Steps / Ideas
-
-- [ ] Add user auth (Supabase)
-- [ ] Save generated CVs to storage (Cloudflare R2)
-- [ ] Add more style options
-- [ ] Preview in mobile/desktop toggle
-- [ ] Share via public URL
-- [ ] Stripe payments (~$5/CV)
+~$0.07 per webpage generated using Claude Sonnet.
