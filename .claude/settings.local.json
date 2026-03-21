@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git commit -m \"Initial commit: CV to Webpage - Next.js app with Claude AI CV generation:*)",
+      "Bash(git remote:*)",
+      "Bash(git pull:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

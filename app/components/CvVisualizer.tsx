@@ -297,7 +297,7 @@ export default function CvVisualizer() {
             {error && <div style={{ ...mono, fontSize: '11px', color: '#FF4B1F', padding: '12px', border: '1px solid rgba(255,75,31,0.3)', background: 'rgba(255,75,31,0.05)', marginBottom: '16px' }}>⚠ {error}</div>}
 
             <button onClick={generate} style={{ width: '100%', padding: '16px', background: accentColor, color: '#fff', border: 'none', ...black, fontSize: '14px', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px' }}>
-              Generate My CV →
+              Generate My Personal Webpage →
             </button>
             <p style={{ ...mono, fontSize: '10px', color: '#444', textAlign: 'center', marginTop: '12px', letterSpacing: '0.1em' }}>Powered by Claude · ~15 seconds</p>
           </>
