@@ -1,8 +1,8 @@
 # CV to Webpage
 
-Turn any CV/resume into a stunning single-page HTML webpage — powered by Claude AI.
+Upload your CV, get a beautiful personal webpage. 6 visual styles, live preview, download as a standalone HTML file — all powered by Claude AI.
 
-**Live app:** https://cv-to-webpage.vercel.app/
+**Try it now:** https://cv-to-webpage.vercel.app/
 
 ## How It Works
 
@@ -22,17 +22,3 @@ Turn any CV/resume into a stunning single-page HTML webpage — powered by Claud
 - **AI:** Claude Sonnet via `@anthropic-ai/sdk`
 - **Styling:** Inline React styles (dark theme)
 - **Deployment:** Vercel
-
-## Local Development
-
-```bash
-npm install
-cp .env.local.example .env.local   # add your ANTHROPIC_API_KEY
-npm run dev
-```
-
-Open http://localhost:3000
-
-## Cost
-
-~$0.07 per webpage generated using Claude Sonnet.
