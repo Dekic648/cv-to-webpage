@@ -2,35 +2,17 @@
 
 Turn any CV/resume into a stunning single-page HTML webpage — powered by Claude AI.
 
-## Quick Start
-
-### 1. Install dependencies
-```bash
-npm install
-```
-
-### 2. Add your Anthropic API key
-```bash
-cp .env.local.example .env.local
-```
-Open `.env.local` and replace the placeholder with your real key.
-Get one at: https://console.anthropic.com
-
-### 3. Run the dev server
-```bash
-npm run dev
-```
-
-Open http://localhost:3000
-
----
+**Live app:** https://cv-to-webpage.vercel.app/
 
 ## How It Works
 
-1. Upload a PDF or text CV
-2. Pick a visual style (vibe, emphasis, accent color)
+1. Upload your CV (PDF, TXT, or DOCX)
+2. Pick a visual style:
+   - **Vibe** — Bold & Creative, Clean & Minimal, Dark & Moody, Sharp & Corporate, Retro Futuristic, or Soft & Editorial
+   - **Emphasis** — Skills & Tools, Work Experience, Projects & Portfolio, or Balanced Overview
+   - **Accent color** — Flame, Teal, Gold, Violet, Rose, or Sky
 3. Click "Generate My Personal Webpage"
-4. Claude AI generates a complete single-file HTML page
+4. Claude AI builds a complete, self-contained HTML page with custom typography, animations, and responsive layout
 5. Preview it in the browser and download as a standalone `.html` file
 
 ## Tech Stack
@@ -39,6 +21,17 @@ Open http://localhost:3000
 - **Language:** TypeScript
 - **AI:** Claude Sonnet via `@anthropic-ai/sdk`
 - **Styling:** Inline React styles (dark theme)
+- **Deployment:** Vercel
+
+## Local Development
+
+```bash
+npm install
+cp .env.local.example .env.local   # add your ANTHROPIC_API_KEY
+npm run dev
+```
+
+Open http://localhost:3000
 
 ## Cost
 
