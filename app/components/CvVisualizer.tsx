@@ -569,7 +569,7 @@ export default function CvVisualizer() {
                 Generate My Webpage
               </button>
               <p style={{ ...mono, fontSize: '10px', color: '#444', textAlign: 'center', marginTop: '10px', letterSpacing: '0.1em' }}>
-                Powered by Claude ~ 20 seconds
+                Powered by Claude ~ 30 seconds
               </p>
             </div>
 

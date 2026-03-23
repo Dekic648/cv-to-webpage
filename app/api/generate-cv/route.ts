@@ -5,36 +5,93 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
+// ─── Pass 1: CV extraction prompt ───────────────────────────
+const EXTRACTION_SYSTEM = `You are a meticulous CV parser. Extract EVERY piece of information from the provided CV/resume into structured JSON.
+
+You MUST return valid JSON only. No markdown, no backticks, no explanation.
+
+Required JSON structure:
+{
+  "name": "Full Name",
+  "title": "Current/Most Recent Job Title",
+  "bio": "2-3 sentence professional summary synthesized from the CV",
+  "contact": {
+    "email": "if present or null",
+    "phone": "if present or null",
+    "location": "city/country if present or null",
+    "linkedin": "URL if present or null",
+    "github": "URL if present or null",
+    "website": "URL if present or null",
+    "other_links": [{"label": "name", "url": "URL"}]
+  },
+  "experience": [
+    {
+      "role": "Job Title",
+      "company": "Company Name",
+      "location": "if present or null",
+      "start_date": "e.g. Jan 2020",
+      "end_date": "e.g. Present",
+      "description": "Full description with ALL bullet points merged into flowing text. Include every metric, number, and achievement mentioned.",
+      "highlights": ["key achievement 1 with numbers", "key achievement 2"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Degree Name",
+      "institution": "School Name",
+      "year": "graduation year or date range",
+      "details": "honors, GPA, relevant coursework if mentioned"
+    }
+  ],
+  "skills": {
+    "categories": [
+      {"name": "Category name if CV groups skills, otherwise use 'Skills'", "items": ["skill1", "skill2"]}
+    ]
+  },
+  "certifications": [{"name": "cert name", "issuer": "if present", "year": "if present"}],
+  "languages": [{"language": "name", "level": "proficiency if stated"}],
+  "projects": [{"name": "project name", "description": "details", "tech": ["if mentioned"], "url": "if present or null"}],
+  "awards": [{"name": "award", "details": "context"}],
+  "publications": [{"title": "name", "details": "context"}],
+  "volunteer": [{"role": "role", "org": "organization", "details": "context"}],
+  "other_sections": [{"title": "Section Name", "content": "raw text content of any section not covered above"}]
+}
+
+CRITICAL RULES:
+- Include EVERY role, EVERY bullet point, EVERY skill, EVERY education entry. Omitting content is a failure.
+- If a field has no data, use null for single values or [] for arrays. Keep the key.
+- Preserve exact numbers, percentages, currency amounts, team sizes — these are the most important details.
+- For experience descriptions: merge all bullet points into a rich paragraph but keep every detail. Also extract the top 2-3 highlights separately.
+- If the CV has sections not covered by the schema (e.g. "Interests", "References", "Summary"), put them in other_sections.
+- Return ONLY the JSON object. Nothing else.`
+
 // ─── Layout specifications ──────────────────────────────────
 const LAYOUT_SPECS: Record<string, string> = {
   spotlight: `LAYOUT — SPOTLIGHT (two-column, fixed sidebar):
 - Left sidebar: fixed position, width ~300px, full viewport height.
-  Contains: name (large, prominent), title/role below, a short 2-3 sentence bio paragraph,
-  vertical navigation links (About, Experience, Skills, Projects — whatever sections exist),
-  social icon links (extract any URLs from the CV) at the bottom.
+  Contains: name (large, prominent), title/role below, bio paragraph,
+  vertical navigation links for each section that exists in the data,
+  social/contact links at the bottom.
 - Right content area: scrollable, with left margin clearing the sidebar, generous padding.
-  All content sections flow here vertically.
+  ALL content sections flow here vertically. Every section of data MUST appear here.
 - Navigation in sidebar MUST highlight the active section on scroll using IntersectionObserver.
-  Each nav link gets a subtle indicator (line, dot, or color change) when its section is in view.
 - The sidebar should have a slightly different background shade for depth.
-- On mobile (<768px): sidebar becomes a compact top header, content goes full-width.
-  Nav becomes a horizontal row or hamburger menu.`,
+- On mobile (<768px): sidebar becomes a compact top header, content goes full-width.`,
 
   editorial: `LAYOUT — EDITORIAL (centered single column):
 - Single centered column, max-width: 720px, with generous auto margins.
 - Top area: name and title, elegant and minimal. No sidebar, no sticky nav.
-- Sections flow vertically with generous spacing (min 4rem between major sections).
+- ALL sections flow vertically with generous spacing (min 4rem between major sections).
 - Use subtle section dividers (thin lines, extra whitespace, or small ornamental elements).
-- This layout is about reading flow — treat it like a beautifully typeset magazine page.
-- Typography does the heavy lifting here. Use size, weight, and spacing for hierarchy.
+- Typography does the heavy lifting. Use size, weight, and spacing for hierarchy.
 - On mobile: maintain centered layout, reduce horizontal padding.`,
 
   showcase: `LAYOUT — SHOWCASE (full-width hero + card sections):
 - Hero section: full viewport width and at least 60vh tall, vertically centered name/title/tagline.
-  Hero can have a subtle gradient, pattern, or texture background for depth.
-- Below hero: content sections with alternating subtle background shifts (e.g. --bg and --bg-raised).
+  Hero should have a subtle gradient, pattern, or texture background for depth.
+- Below hero: ALL content sections with alternating subtle background shifts.
 - Experience and projects displayed as card grids (2-3 columns on desktop).
-  Cards should have clear borders or shadows, hover effects (lift + shadow increase), and consistent sizing.
+  Cards have borders or shadows, hover effects (lift + shadow increase), consistent sizing.
 - Sticky top navigation bar with section links, semi-transparent background with backdrop-blur.
 - On mobile: single column cards, hero scales down, nav stays sticky.`,
 }
@@ -42,62 +99,45 @@ const LAYOUT_SPECS: Record<string, string> = {
 // ─── Tone specifications ────────────────────────────────────
 const TONE_SPECS: Record<string, string> = {
   refined: `TONE — REFINED:
-- Heading font: a elegant serif like Playfair Display, Cormorant Garamond, or Libre Baskerville.
-- Body font: a clean sans-serif like Inter, Source Sans 3, or Work Sans.
-- Extra whitespace everywhere — let the design breathe. Padding should feel generous.
-- Colors should be muted and desaturated. Accent is used sparingly — links and small highlights only.
-- Subtle details: thin borders (0.5px-1px), letter-spacing on uppercase labels, gentle opacity transitions.
-- No bold animations. Transitions should be 0.2-0.3s ease. Understated elegance.`,
+- Heading font: elegant serif (Playfair Display, Cormorant Garamond, or Libre Baskerville).
+- Body font: clean sans-serif (Source Sans 3, Work Sans, or Karla).
+- Extra whitespace everywhere. Accent used sparingly — links and small highlights only.
+- Thin borders (0.5px-1px), letter-spacing on uppercase labels, gentle opacity transitions.
+- Transitions: 0.2-0.3s ease. Understated elegance.`,
 
   technical: `TONE — TECHNICAL:
-- Heading font: a geometric sans like Space Grotesk, Outfit, or Syne.
-- Code/label font: a monospace like JetBrains Mono or Space Mono — use for dates, labels, tags.
-- Structured and systematic. Use consistent grid alignment. Data should feel organized.
-- Skill badges and tags should be prominent — monospace text, bordered chips, grid layout.
-- Numbers and metrics from the CV should be visually highlighted (large, bold, or colored).
-- Subtle grid lines or structured dividers between sections. Clean, precise, engineer-friendly.`,
+- Heading font: geometric sans (Space Grotesk, Outfit, or Syne).
+- Code/label font: monospace (JetBrains Mono or Space Mono) for dates, labels, tags.
+- Structured and systematic. Consistent grid alignment. Data feels organized.
+- Skill badges prominent — monospace text, bordered chips, grid layout.
+- Numbers and metrics visually highlighted (large, bold, or colored).`,
 
   creative: `TONE — CREATIVE:
-- Heading font: a bold display face like Clash Display, Archivo Black, Cabinet Grotesk, or Syne.
-- Body font: a readable sans like Inter or DM Sans.
-- Bolder use of accent color — section backgrounds, large heading highlights, colored underlines.
-- More visual personality: asymmetric layouts within sections, overlapping elements, editorial flair.
-- Skill tags can be more colorful. Section headers can be larger and more dramatic.
-- Interactions can be slightly more playful — scale on hover, color shifts, cursor effects.`,
+- Heading font: bold display face (Archivo Black, Cabinet Grotesk, or Syne).
+- Body font: readable sans (DM Sans or Plus Jakarta Sans).
+- Bolder accent color usage — section backgrounds, heading highlights, colored underlines.
+- Visual personality: asymmetric layouts, editorial flair within sections.
+- Interactions slightly more playful — scale on hover, color shifts.`,
 
   warm: `TONE — WARM:
-- Heading font: a friendly rounded sans like DM Sans, Nunito, or Rubik.
-- Body font: same family or paired with a soft serif like Lora.
-- Rounded corners on everything (cards, badges, buttons) — 8px-12px radius.
+- Heading font: friendly rounded sans (DM Sans, Nunito, or Rubik).
+- Body font: same family or paired with soft serif (Lora).
+- Rounded corners on everything (8px-12px radius).
 - Soft shadows instead of hard borders (box-shadow with large blur, low opacity).
-- Colors should feel inviting — slightly warm backgrounds (not pure white or pure black).
-  In dark mode, use warm darks (#1A1816 not #000). In light mode, use warm whites (#FAF8F5 not #FFF).
-- Generous padding, friendly spacing. The design should feel approachable and human.`,
+- Warm backgrounds (#1A1816 dark, #FAF8F5 light). Approachable and human.`,
 }
 
-// ─── Core design system (always included) ───────────────────
+// ─── Core design system ─────────────────────────────────────
 function buildDesignSystem(mode: string, accentColor: string): string {
   const dark = mode === 'dark'
   return `
-MANDATORY DESIGN SYSTEM — follow this exactly:
+MANDATORY DESIGN SYSTEM:
 
 CSS CUSTOM PROPERTIES (define in :root):
-  /* Typography scale */
-  --text-xs: 0.75rem;    /* 12px — labels, dates */
-  --text-sm: 0.875rem;   /* 14px — secondary text */
-  --text-base: 1rem;     /* 16px — body */
-  --text-lg: 1.125rem;   /* 18px — emphasized body */
-  --text-xl: 1.25rem;    /* 20px — section headers */
-  --text-2xl: 1.5rem;    /* 24px — sub-headings */
-  --text-3xl: 2rem;      /* 32px — page headings */
-  --text-4xl: 2.75rem;   /* 44px — hero/name */
-
-  /* Spacing scale — use these, not arbitrary values */
-  --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
-  --space-4: 1rem;     --space-6: 1.5rem;  --space-8: 2rem;
-  --space-12: 3rem;    --space-16: 4rem;   --space-24: 6rem;
-
-  /* Colors */
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-base: 1rem; --text-lg: 1.125rem;
+  --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 2rem; --text-4xl: 2.75rem;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --space-6: 1.5rem; --space-8: 2rem; --space-12: 3rem; --space-16: 4rem; --space-24: 6rem;
   --bg: ${dark ? '#0F0F0F' : '#FAFAF8'};
   --bg-raised: ${dark ? '#181818' : '#FFFFFF'};
   --bg-subtle: ${dark ? '#1E1E1E' : '#F5F3F0'};
@@ -107,23 +147,20 @@ CSS CUSTOM PROPERTIES (define in :root):
   --accent: ${accentColor};
   --accent-muted: ${accentColor}40;
   --border: ${dark ? '#2A2A2A' : '#E5E2DD'};
-  --border-subtle: ${dark ? '#1E1E1E' : '#F0EDE8'};
 
-MANDATORY RULES:
-1. Output ONLY raw HTML. No markdown, no backticks, no explanation. Start with <!DOCTYPE html>.
+RULES:
+1. Output ONLY raw HTML. No markdown, no backticks. Start with <!DOCTYPE html>.
 2. All CSS in <style>, all JS in <script>. Single self-contained file.
-3. Load exactly 2 Google Fonts via <link> — one for headings, one for body. NEVER use Inter, Roboto, or Arial from Google Fonts (system fallbacks are fine).
-4. Use the CSS custom properties defined above for ALL colors, spacing, and font sizes. No hardcoded values.
-5. All interactive elements (links, cards, badges) get: transition: all 0.2s ease;
+3. Load exactly 2 Google Fonts via <link> — one for headings, one for body.
+4. Use CSS custom properties for ALL colors, spacing, font sizes.
+5. All interactive elements: transition: all 0.2s ease;
 6. Links: text-underline-offset: 3px; text-decoration-thickness: 1px;
-7. Scroll-reveal: use IntersectionObserver to fade+slide sections in on scroll. Subtle — translateY(20px) to 0, opacity 0 to 1, 0.5s ease.
-8. Skills/tools: render as styled tag badges in a flex-wrap grid. Monospace font, small, bordered.
-9. Extract ALL information from the CV accurately. Do not invent or omit content.
-10. Responsive: test at 1200px, 768px, and 375px widths mentally. Use @media queries.
-11. Body line-height: 1.6-1.7 for readability. Headings: 1.1-1.2.
-12. Sections should have generous vertical padding (var(--space-16) or more between major sections).
-13. Add a subtle noise/grain texture overlay on the body for depth (use a CSS pseudo-element with a tiny repeating SVG or gradient pattern, very low opacity).
-14. Use the accent color SPARINGLY — for links, active states, key highlights. Not for large areas.`
+7. Scroll-reveal with IntersectionObserver: translateY(20px)->0, opacity 0->1, 0.5s ease.
+8. Skills as styled tag badges in flex-wrap grid.
+9. Responsive with @media queries for 1200px, 768px, 375px.
+10. Body line-height: 1.6-1.7. Headings: 1.1-1.2.
+11. Generous section padding (var(--space-16)+).
+12. Accent color used SPARINGLY — links, active states, key highlights only.`
 }
 
 export async function POST(req: NextRequest) {
@@ -140,14 +177,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // ── PASS 1: Extract all CV content ──────────────────────
+    const extractionContent = cvMediaType === 'application/pdf'
+      ? [
+          {
+            type: 'document' as const,
+            source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: cvBase64 },
+          },
+          { type: 'text' as const, text: 'Extract all content from this CV into the JSON structure specified. Include every single detail.' },
+        ]
+      : [
+          {
+            type: 'text' as const,
+            text: `Extract all content from this CV into the JSON structure specified. Include every single detail.\n\nCV CONTENT:\n${Buffer.from(cvBase64, 'base64').toString('utf-8')}`,
+          },
+        ]
+
+    const extractionResponse = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      system: EXTRACTION_SYSTEM,
+      messages: [{ role: 'user', content: extractionContent }],
+    })
+
+    const extractedRaw = extractionResponse.content.find((b) => b.type === 'text')?.text ?? '{}'
+    // Clean potential markdown wrapping
+    const extractedJson = extractedRaw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim()
+
+    // Validate it's parseable JSON
+    let cvData
+    try {
+      cvData = JSON.parse(extractedJson)
+    } catch {
+      return NextResponse.json({ error: 'Failed to parse CV content. Please try again or use a different file format.' }, { status: 500 })
+    }
+
+    // ── PASS 2: Build the webpage ───────────────────────────
     const layoutSpec = LAYOUT_SPECS[layout] || LAYOUT_SPECS.spotlight
     const toneSpec = TONE_SPECS[tone] || TONE_SPECS.refined
     const designSystem = buildDesignSystem(mode, accentColor)
 
-    const system = `You are an elite frontend developer and visual designer who builds stunning personal webpages.
-Your output quality matches the best hand-crafted developer portfolios — sites like brittanychiang.com, philipwalton.com, or stantyan.com.
+    const buildSystem = `You are an elite frontend developer and visual designer.
+Your output quality matches hand-crafted portfolios like brittanychiang.com or philipwalton.com.
 
-You will receive a CV/resume document. Transform it into a beautiful, rich, single-file HTML personal webpage.
+You will receive structured JSON data extracted from a CV. Build a stunning single-file HTML personal webpage using ALL of the provided data.
 
 ${designSystem}
 
@@ -155,56 +228,36 @@ ${layoutSpec}
 
 ${toneSpec}
 
-QUALITY BENCHMARKS — your output must feel like:
-- A page someone spent weeks designing, not auto-generated
-- Careful visual hierarchy: the eye knows exactly where to go
-- Whitespace is intentional and generous, never cramped
-- Typography creates rhythm — varied sizes, weights, and spacing guide the reader
-- Colors are cohesive — accent is a thread that ties the design together
-- Hover states feel precise and responsive, not showy
-- The page looks complete and polished, not like a template
+CRITICAL — CONTENT COMPLETENESS:
+- You MUST render EVERY experience entry from the JSON. Every single one with full descriptions.
+- You MUST render EVERY education entry, EVERY skill, EVERY certification, EVERY project.
+- If a section has data (non-null, non-empty array), it MUST appear on the page.
+- Sections with no data (null or empty arrays) should be omitted entirely.
+- Experience highlights should be visually distinct (bold, colored, or separated).
+- The bio goes in the header/sidebar area. All other sections go in the main content area.
+- For experience: show role, company, dates, full description text, and highlights.
 
-CONTENT EXTRACTION RULES:
-- Extract every role, company, date, description, skill, education entry, and project
-- If the CV contains URLs (LinkedIn, GitHub, portfolio), include them as proper links
-- If no URLs exist, omit social links — do not invent them
-- Bold key metrics and numbers naturally within descriptions
-- Write a short 2-3 sentence bio synthesized from the CV's overall narrative (role + expertise + focus)
+This is the #1 priority: ALL content must be visible on the page. Design is secondary to completeness.
 
 MODE: ${mode}
 ACCENT: ${accentLabel} (${accentColor})`
 
-    const userContent = cvMediaType === 'application/pdf'
-      ? [
-          {
-            type: 'document' as const,
-            source: {
-              type: 'base64' as const,
-              media_type: 'application/pdf' as const,
-              data: cvBase64,
-            },
-          },
-          {
-            type: 'text' as const,
-            text: `Build my personal webpage. Layout: ${layoutLabel}. Tone: ${toneLabel} (${toneDesc}). Mode: ${mode}. Accent: ${accentLabel} (${accentColor}).`,
-          },
-        ]
-      : [
-          {
-            type: 'text' as const,
-            text: `Here is my CV content:\n\n${Buffer.from(cvBase64, 'base64').toString('utf-8')}\n\nBuild my personal webpage. Layout: ${layoutLabel}. Tone: ${toneLabel} (${toneDesc}). Mode: ${mode}. Accent: ${accentLabel} (${accentColor}).`,
-          },
-        ]
-
-    const response = await client.messages.create({
+    const buildResponse = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 16000,
-      system,
-      messages: [{ role: 'user', content: userContent }],
+      max_tokens: 24000,
+      system: buildSystem,
+      messages: [{
+        role: 'user',
+        content: `Here is the complete CV data as JSON. Build the HTML webpage using ALL of this data. Do not skip any section or entry.\n\n${JSON.stringify(cvData, null, 2)}\n\nLayout: ${layoutLabel}. Tone: ${toneLabel} (${toneDesc}). Mode: ${mode}. Accent: ${accentLabel} (${accentColor}).`,
+      }],
     })
 
-    const raw = response.content.find((b) => b.type === 'text')?.text ?? ''
+    const raw = buildResponse.content.find((b) => b.type === 'text')?.text ?? ''
     const html = raw.replace(/^```html?\s*/i, '').replace(/\s*```$/i, '').trim()
+
+    if (!html.toLowerCase().includes('<html')) {
+      return NextResponse.json({ error: 'Generation produced unexpected output. Please try again.' }, { status: 500 })
+    }
 
     return NextResponse.json({ html })
   } catch (err: unknown) {
